@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 #time calculate karne ke liye (token kab expire hoga)
 from jose import JWTError, jwt
 #python-jose library — JWT tokens banane aur decode karne ke liye
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
 #library se, password hash karne ke liye
 from dotenv import load_dotenv
 import os
@@ -15,9 +15,9 @@ ALGORITHM = "HS256"
 #JWT token sign karne ka method (industry standard choice)
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-#ek object banaya jo bcrypt algorithm se password hash karega — bcrypt jaan-bujhkar slow hai,
-#taaki brute-force attacks mushkil ho
+pwd_context = PasswordHash.recommended()
+#ek object banaya jo secure password hashing algorithm use karega
+#taaki database mein plain password kabhi store na ho
 
 def hash_password(password: str):
     return pwd_context.hash(password)

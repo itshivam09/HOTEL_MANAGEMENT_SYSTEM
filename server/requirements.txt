@@ -56,7 +56,6 @@ websockets==16.0
 
 python-dotenv
 SQLAlchemy==2.0.43
-bcrypt
-passlib
+pwdlib[argon2]
 python-jose
 email-validator
