@@ -1,6 +1,6 @@
 import resend
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -12,21 +12,20 @@ def send_otp_email(to_email: str, otp_code: str):
     subject = "Your OTP Code - Hotel Management System"
 
     body = f"""
-    Your OTP code is: {otp_code}
+Your OTP code is: {otp_code}
 
-    This code will expire in 5 minutes.
-    """
+This code will expire in 5 minutes.
+"""
 
     try:
         response = resend.Emails.send({
-            "from": "Hotel Management System <onboarding@resend.dev>",
+            "from": "Hotel Management System <noreply@yourhotel.com>",
             "to": [to_email],
             "subject": subject,
             "text": body
         })
 
         print(f"OTP email sent successfully to {to_email}")
-        print(response)
 
     except Exception as e:
         print(f"Failed to send email: {e}")
