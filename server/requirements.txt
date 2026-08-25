@@ -7,3 +7,4 @@ python-multipart
 python-dotenv
 email-validator
 pydantic
+resend
