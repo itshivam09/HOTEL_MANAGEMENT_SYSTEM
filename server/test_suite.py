@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import SessionLocal
 import models
 
-BASE_URL = "http://127.0.0.1:8001"
+BASE_URL = "http://127.0.0.1:8000"
 
 def make_req(path, method="GET", data=None, headers=None):
     url = f"{BASE_URL}{path}"
@@ -42,9 +42,9 @@ def run_tests():
     print("========================================")
 
     # 1. Health check
-    status, data = make_req("/")
-    assert status == 200, f"Root check failed: {status}, {data}"
-    print("[PASS] 1. Root / healthcheck")
+    status, data = make_req("/api/health")
+    assert status == 200, f"Health check failed: {status}, {data}"
+    print("[PASS] 1. Root /api/health check")
 
     # 2. Register normal user (Guest)
     ts = int(time.time())

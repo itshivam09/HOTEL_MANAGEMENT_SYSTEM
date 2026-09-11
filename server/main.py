@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from database import engine, Base
 from routers import users, hotels, rooms, bookings
@@ -34,9 +36,43 @@ app.include_router(rooms.router, prefix="/rooms", tags=["Rooms"])
 app.include_router(bookings.router, prefix="/bookings", tags=["Bookings"])
 
 
-@app.get("/")
-def root():
+@app.get("/api/health")
+def health_check():
     return {
         "status": "online",
-        "message": "Hotel Management System API is running successfully on Render"
+        "message": "Hotel Management System API is running successfully"
     }
+
+
+# Check if React client dist exists (supports single full-stack Web Service deployment)
+client_dist = os.path.join(os.path.dirname(__file__), "..", "client", "dist")
+if not os.path.exists(client_dist):
+    client_dist = os.path.join(os.path.dirname(__file__), "dist")
+
+if os.path.exists(client_dist):
+    assets_dir = os.path.join(client_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Do not intercept API or documentation routes
+        if full_path.startswith(("users", "hotels", "rooms", "bookings", "api", "docs", "openapi.json", "redoc")):
+            return {"detail": "Not Found"}
+
+        file_path = os.path.join(client_dist, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+
+        index_file = os.path.join(client_dist, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+
+        return {"status": "online", "message": "API Running. Frontend dist not found."}
+else:
+    @app.get("/")
+    def root():
+        return {
+            "status": "online",
+            "message": "Hotel Management System API is running successfully. To see the frontend, deploy the client folder as a Render Static Site."
+        }
