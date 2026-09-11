@@ -18,8 +18,8 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     #Jab bhi naya user create ho, current UTC time automatically save ho jayega
-    hotels = relationship("Hotel", back_populates="owner")
-    bookings = relationship("Booking", back_populates="user")
+    hotels = relationship("Hotel", back_populates="owner", cascade="all, delete-orphan")
+    bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
     #ek User ke multiple Hotels ho sakte hain" aur "ek User ke multiple Bookings ho sakte hain"
     #back_populates="owner" — Hotel table mein bhi ek owner naam ka relationship hona chahiye jo isko wapas point kare
 
@@ -38,7 +38,7 @@ class Hotel(Base):
     #description null ho skta hai
     owner = relationship("User", back_populates="hotels")
     #owner — is hotel ka owner (User object) directly access karne ke liye: hotel.owner.name
-    rooms = relationship("Room", back_populates="hotel")
+    rooms = relationship("Room", back_populates="hotel", cascade="all, delete-orphan")
     #rooms — is hotel ke saare rooms: hotel.rooms
 
 class Room(Base):
@@ -53,7 +53,7 @@ class Room(Base):
     is_available = Column(Boolean, default=True)
 
     hotel = relationship("Hotel", back_populates="rooms")
-    bookings = relationship("Booking", back_populates="room")
+    bookings = relationship("Booking", back_populates="room", cascade="all, delete-orphan")
 
 class Booking(Base):
     __tablename__ = "bookings"

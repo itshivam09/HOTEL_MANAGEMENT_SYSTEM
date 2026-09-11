@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { getHotelImage } from "../utils/imageUtils";
 
 function OwnerDashboard() {
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const { isNight, toggleTheme } = useTheme();
 
   const [hotels, setHotels] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [totalRooms, setTotalRooms] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [showAddHotel, setShowAddHotel] = useState(false);
-
   const [hotelForm, setHotelForm] = useState({
     name: "",
     city: "",
@@ -19,38 +25,45 @@ function OwnerDashboard() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
 
-  // ================================
-  // GET HOTELS
-  // ================================
-
-  const fetchHotels = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await API.get("/hotels/my");
+      const [hotelsRes, bookingsRes] = await Promise.all([
+        API.get("/hotels/my"),
+        API.get("/bookings/owner").catch(() => ({ data: [] })),
+      ]);
 
-      setHotels(response.data);
+      const ownerHotels = hotelsRes.data || [];
+      setHotels(ownerHotels);
+      setBookings(bookingsRes.data || []);
+
+      let roomsCount = 0;
+      await Promise.all(
+        ownerHotels.map(async (h) => {
+          try {
+            const rRes = await API.get(`/rooms/${h.id}`);
+            roomsCount += (rRes.data || []).length;
+          } catch (e) {
+            console.error("Failed to load rooms for hotel", h.id, e);
+          }
+        })
+      );
+      setTotalRooms(roomsCount);
     } catch (err) {
       console.error(err);
-
-      setError(
-        err.response?.data?.detail ||
-          "Unable to load hotels."
-      );
+      setError(err.response?.data?.detail || "Unable to load owner dashboard.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHotels();
+    fetchDashboardData();
   }, []);
-
-  // ================================
-  // FORM CHANGE
-  // ================================
 
   const handleChange = (e) => {
     setHotelForm({
@@ -59,128 +72,131 @@ function OwnerDashboard() {
     });
   };
 
-  // ================================
-  // ADD HOTEL
-  // ================================
-
   const handleAddHotel = async (e) => {
     e.preventDefault();
-
     try {
       setError("");
       setMessage("");
 
-      const response = await API.post(
-        "/hotels/",
-        hotelForm
-      );
-
-      // Add newly created hotel to UI
-      setHotels((prevHotels) => [
-        ...prevHotels,
-        response.data,
-      ]);
-
-      // Reset form
+      const response = await API.post("/hotels/", hotelForm);
+      setHotels((prev) => [...prev, response.data]);
       setHotelForm({
         name: "",
         city: "",
         address: "",
         description: "",
       });
-
       setShowAddHotel(false);
-
-      setMessage("Hotel added successfully!");
-
-      setTimeout(() => {
-        setMessage("");
-      }, 3000);
-
+      setMessage("🎉 Hotel registered successfully!");
+      setTimeout(() => setMessage(""), 3500);
     } catch (err) {
       console.error(err);
-
-      setError(
-        err.response?.data?.detail ||
-          "Unable to add hotel."
-      );
+      setError(err.response?.data?.detail || "Unable to add hotel.");
     }
   };
 
-  // ================================
-  // LOGOUT
-  // ================================
-
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
+    logout();
     navigate("/login");
   };
 
+  const totalRevenue = bookings.reduce((sum, b) => (b.status !== "cancelled" ? sum + (b.total_price || 0) : sum), 0);
+
+  const filteredBookings = bookings.filter((b) =>
+    (b.customer_name || "").toLowerCase().includes(searchFilter.toLowerCase()) ||
+    (b.hotel_name || "").toLowerCase().includes(searchFilter.toLowerCase()) ||
+    (b.room_type || "").toLowerCase().includes(searchFilter.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-
-      {/* ============================
-          NAVBAR
-      ============================= */}
-
-      <nav className="border-b border-white/10 bg-slate-900">
-
+    <div
+      className={`min-h-screen pb-24 transition-colors duration-500 selection:bg-indigo-600 selection:text-white ${
+        isNight ? "text-white" : "text-slate-900"
+      }`}
+    >
+      {/* Executive Navbar */}
+      <nav
+        className={`border-b backdrop-blur-xl sticky top-0 z-40 transition-colors duration-500 ${
+          isNight
+            ? "border-white/10 bg-slate-950/80 text-white"
+            : "border-slate-200 bg-white/85 text-slate-900 shadow-sm"
+        }`}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-lg shadow-lg">
+              👑
+            </div>
+            <div>
+              <span className="font-heading text-lg font-bold">StayEasy</span>
+              <span className="text-xs text-indigo-500 block font-semibold">Owner Portal</span>
+            </div>
+          </Link>
 
-          <h1 className="text-2xl font-bold">
-            🏨 HotelHub
-          </h1>
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Day / Night Switcher */}
+            <button
+              onClick={toggleTheme}
+              title={isNight ? "Switch to Day Mode" : "Switch to Night Mode"}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                isNight
+                  ? "border border-amber-400/30 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+                  : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+              }`}
+            >
+              <span>{isNight ? "🌙" : "☀️"}</span>
+              <span className="hidden sm:inline">{isNight ? "Night" : "Day"}</span>
+            </button>
 
-          <div className="flex items-center gap-4">
-
-            <span className="hidden text-sm text-slate-400 sm:block">
-              Hotel Owner
-            </span>
+            <div className="hidden sm:block text-right">
+              <p className="text-xs font-bold">{user?.name || "Hotel Owner"}</p>
+              <p className="text-[10px] text-indigo-500">Verified Partner</p>
+            </div>
 
             <button
               onClick={handleLogout}
-              className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-400 transition hover:bg-red-500/10"
+              className={`rounded-xl border px-4 py-2 text-xs font-bold transition ${
+                isNight
+                  ? "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-white"
+                  : "border-red-200 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"
+              }`}
             >
               Logout
             </button>
-
           </div>
-
         </div>
-
       </nav>
 
-
-      {/* ============================
-          MAIN
-      ============================= */}
-
-      <main className="mx-auto max-w-7xl px-6 py-10">
-
-        {/* HEADER */}
-
-        <div className="mb-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-
+      {/* Main Content */}
+      <main className="mx-auto max-w-7xl px-6 pt-10 lg:px-8">
+        {/* Header Title & CTA */}
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
-
-            <p className="text-sm font-medium text-indigo-400">
-              OWNER PANEL
-            </p>
-
-            <h2 className="mt-2 text-3xl font-bold">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${
+                isNight
+                  ? "border border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                  : "border border-indigo-200 bg-indigo-50 text-indigo-700"
+              }`}
+            >
+              <span>⚡</span>
+              <span>EXECUTIVE CONTROL CENTER</span>
+            </div>
+            <h1
+              className={`font-heading mt-3 text-3xl font-extrabold sm:text-4xl ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
               Owner Dashboard
-            </h2>
-
-            <p className="mt-2 text-slate-400">
-              Manage your hotels from one place.
+            </h1>
+            <p
+              className={`mt-1 text-sm ${
+                isNight ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              Manage your hotel portfolio, rooms inventory, and live guest reservations.
             </p>
-
           </div>
-
-
-          {/* ADD HOTEL BUTTON */}
 
           <button
             onClick={() => {
@@ -188,407 +204,507 @@ function OwnerDashboard() {
               setError("");
               setMessage("");
             }}
-            className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold transition hover:bg-indigo-500"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3.5 font-heading font-bold text-white shadow-xl shadow-indigo-600/30 transition hover:scale-105 cursor-pointer"
           >
-            + Add Hotel
+            <span>+ Add New Hotel</span>
           </button>
-
         </div>
 
-
-        {/* ============================
-            SUCCESS MESSAGE
-        ============================= */}
-
+        {/* Status Alerts */}
         {message && (
-
-          <div className="mb-6 rounded-xl border border-green-500/20 bg-green-500/10 px-5 py-4 text-green-400">
-            ✓ {message}
+          <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-emerald-500 backdrop-blur-xl">
+            {message}
           </div>
-
         )}
-
-
-        {/* ============================
-            ERROR MESSAGE
-        ============================= */}
 
         {error && (
-
-          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-red-400">
+          <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-400 backdrop-blur-xl">
             {error}
           </div>
-
         )}
 
+        {/* Metrics Cards */}
+        <div className="mb-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            icon="🏨"
+            title="Total Hotels"
+            value={hotels.length}
+            tag="Active Properties"
+            color="from-indigo-600 to-blue-600"
+            isNight={isNight}
+          />
 
-        {/* ============================
-            STATISTICS
-        ============================= */}
+          <MetricCard
+            icon="🛏️"
+            title="Total Rooms"
+            value={totalRooms}
+            tag="Listed Suites"
+            color="from-purple-600 to-indigo-600"
+            isNight={isNight}
+          />
 
-        <div className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <MetricCard
+            icon="📅"
+            title="Guest Bookings"
+            value={bookings.length}
+            tag="All Time Reservations"
+            color="from-pink-600 to-purple-600"
+            isNight={isNight}
+          />
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
-            <div className="text-3xl">
-              🏨
-            </div>
-
-            <p className="mt-4 text-3xl font-bold">
-              {hotels.length}
-            </p>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Total Hotels
-            </p>
-
-          </div>
-
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
-            <div className="text-3xl">
-              🛏️
-            </div>
-
-            <p className="mt-4 text-3xl font-bold">
-              —
-            </p>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Total Rooms
-            </p>
-
-          </div>
-
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-
-            <div className="text-3xl">
-              📅
-            </div>
-
-            <p className="mt-4 text-3xl font-bold">
-              —
-            </p>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Total Bookings
-            </p>
-
-          </div>
-
+          <MetricCard
+            icon="💰"
+            title="Total Revenue"
+            value={`₹${totalRevenue.toLocaleString("en-IN")}`}
+            tag="Gross Bookings Value"
+            color="from-emerald-600 to-teal-600"
+            isNight={isNight}
+          />
         </div>
 
-
-        {/* ============================
-            ADD HOTEL FORM
-        ============================= */}
-
+        {/* Add Hotel Modal / Form */}
         {showAddHotel && (
-
-          <div className="mb-10 rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-xl">
-
-            <div className="mb-6 flex items-center justify-between">
-
+          <div
+            className={`mb-12 rounded-3xl p-8 shadow-2xl backdrop-blur-2xl transition-all ${
+              isNight
+                ? "border border-indigo-500/30 bg-slate-900/95 text-white"
+                : "border border-indigo-200 bg-white text-slate-900 shadow-slate-200/80"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between mb-6 pb-4 border-b ${
+                isNight ? "border-white/10" : "border-slate-100"
+              }`}
+            >
               <div>
-
-                <h3 className="text-xl font-bold">
-                  Add New Hotel
-                </h3>
-
-                <p className="mt-1 text-sm text-slate-400">
-                  Enter your hotel information.
+                <h3 className="font-heading text-2xl font-bold">Register New Property</h3>
+                <p
+                  className={`text-xs mt-1 ${
+                    isNight ? "text-slate-400" : "text-slate-500"
+                  }`}
+                >
+                  Provide your hotel's details to begin accepting reservations.
                 </p>
-
               </div>
-
-
               <button
                 onClick={() => setShowAddHotel(false)}
-                className="text-2xl text-slate-400 hover:text-white"
+                className={`text-2xl cursor-pointer ${
+                  isNight ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"
+                }`}
               >
                 ×
               </button>
-
             </div>
 
-
-            <form
-              onSubmit={handleAddHotel}
-              className="grid gap-5 md:grid-cols-2"
-            >
-
-              {/* HOTEL NAME */}
-
+            <form onSubmit={handleAddHotel} className="grid gap-6 md:grid-cols-2">
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
+                <label
+                  className={`mb-2 block text-xs font-bold uppercase tracking-wider ${
+                    isNight ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
                   Hotel Name
                 </label>
-
                 <input
                   type="text"
                   name="name"
                   value={hotelForm.name}
                   onChange={handleChange}
-                  placeholder="Grand Hotel"
+                  placeholder="e.g. Grand Royale Palace"
                   required
-                  className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  className={`w-full rounded-2xl border px-4 py-3.5 text-sm font-semibold outline-none focus:border-indigo-500 ${
+                    isNight
+                      ? "border-white/10 bg-slate-950 text-white"
+                      : "border-slate-300 bg-slate-50 text-slate-900"
+                  }`}
                 />
-
               </div>
 
-
-              {/* CITY */}
-
               <div>
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
+                <label
+                  className={`mb-2 block text-xs font-bold uppercase tracking-wider ${
+                    isNight ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
                   City
                 </label>
-
                 <input
                   type="text"
                   name="city"
                   value={hotelForm.city}
                   onChange={handleChange}
-                  placeholder="Kanpur"
+                  placeholder="e.g. Goa, Mumbai, Kanpur..."
                   required
-                  className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  className={`w-full rounded-2xl border px-4 py-3.5 text-sm font-semibold outline-none focus:border-indigo-500 ${
+                    isNight
+                      ? "border-white/10 bg-slate-950 text-white"
+                      : "border-slate-300 bg-slate-50 text-slate-900"
+                  }`}
                 />
-
               </div>
 
-
-              {/* ADDRESS */}
-
               <div className="md:col-span-2">
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Address
+                <label
+                  className={`mb-2 block text-xs font-bold uppercase tracking-wider ${
+                    isNight ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
+                  Full Street Address
                 </label>
-
                 <input
                   type="text"
                   name="address"
                   value={hotelForm.address}
                   onChange={handleChange}
-                  placeholder="123 Main Street, Kanpur"
+                  placeholder="e.g. 100 Marine Drive, Nariman Point, Mumbai"
                   required
-                  className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  className={`w-full rounded-2xl border px-4 py-3.5 text-sm font-semibold outline-none focus:border-indigo-500 ${
+                    isNight
+                      ? "border-white/10 bg-slate-950 text-white"
+                      : "border-slate-300 bg-slate-50 text-slate-900"
+                  }`}
                 />
-
               </div>
 
-
-              {/* DESCRIPTION */}
-
               <div className="md:col-span-2">
-
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Description
+                <label
+                  className={`mb-2 block text-xs font-bold uppercase tracking-wider ${
+                    isNight ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
+                  Hotel Description & Highlights
                 </label>
-
                 <textarea
                   name="description"
                   value={hotelForm.description}
                   onChange={handleChange}
-                  placeholder="Describe your hotel..."
-                  rows="4"
-                  className="w-full resize-none rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  placeholder="Describe your property amenities, scenic views, and hospitality..."
+                  rows="3"
+                  className={`w-full resize-none rounded-2xl border px-4 py-3.5 text-sm font-semibold outline-none focus:border-indigo-500 ${
+                    isNight
+                      ? "border-white/10 bg-slate-950 text-white"
+                      : "border-slate-300 bg-slate-50 text-slate-900"
+                  }`}
                 />
-
               </div>
 
-
-              {/* BUTTONS */}
-
-              <div className="flex gap-3 md:col-span-2">
-
+              <div className="flex gap-4 md:col-span-2">
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold transition hover:bg-indigo-500"
+                  className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3.5 font-heading font-bold text-white shadow-lg transition hover:scale-[1.02] cursor-pointer"
                 >
-                  Add Hotel
+                  Create Hotel Profile
                 </button>
-
-
                 <button
                   type="button"
                   onClick={() => setShowAddHotel(false)}
-                  className="rounded-xl border border-white/10 px-6 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
+                  className={`rounded-xl border px-6 py-3.5 font-semibold transition cursor-pointer ${
+                    isNight
+                      ? "border-white/10 text-slate-300 hover:bg-white/5"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                  }`}
                 >
                   Cancel
                 </button>
-
               </div>
-
             </form>
-
           </div>
-
         )}
 
-
-        {/* ============================
-            MY HOTELS
-        ============================= */}
-
-        <section>
-
-          <div className="mb-6">
-
-            <h3 className="text-2xl font-bold">
-              My Hotels
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Hotels available in your account
-            </p>
-
+        {/* Managed Properties Section */}
+        <section className="mb-16">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2
+                className={`font-heading text-2xl font-bold ${
+                  isNight ? "text-white" : "text-slate-900"
+                }`}
+              >
+                Your Managed Properties
+              </h2>
+              <p
+                className={`text-xs mt-1 ${
+                  isNight ? "text-slate-400" : "text-slate-500"
+                }`}
+              >
+                Select a hotel to manage rooms, prices, or inventory.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                isNight
+                  ? "bg-white/5 border border-white/10 text-slate-300"
+                  : "bg-slate-100 border border-slate-200 text-slate-700"
+              }`}
+            >
+              {hotels.length} Hotel{hotels.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
-
-          {/* LOADING */}
-
-          {loading && (
-
+          {loading ? (
             <div className="py-20 text-center">
-
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-slate-700 border-t-indigo-500" />
-
-              <p className="mt-4 text-slate-400">
-                Loading hotels...
-              </p>
-
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-500/20 border-t-indigo-500" />
             </div>
-
-          )}
-
-
-          {/* EMPTY */}
-
-          {!loading && hotels.length === 0 && (
-
-            <div className="rounded-2xl border border-dashed border-white/10 px-6 py-20 text-center">
-
-              <div className="text-6xl">
-                🏨
-              </div>
-
-              <h3 className="mt-5 text-xl font-bold">
-                No hotels yet
-              </h3>
-
-              <p className="mt-2 text-slate-400">
-                Add your first hotel to get started.
+          ) : hotels.length === 0 ? (
+            <div
+              className={`rounded-3xl border border-dashed p-16 text-center ${
+                isNight
+                  ? "border-white/15 bg-slate-900/40 text-white"
+                  : "border-slate-300 bg-white text-slate-900"
+              }`}
+            >
+              <div className="text-6xl mb-3">🏨</div>
+              <h3 className="font-heading text-xl font-bold">No properties registered yet</h3>
+              <p
+                className={`mt-1 text-sm ${
+                  isNight ? "text-slate-400" : "text-slate-500"
+                }`}
+              >
+                Add your first hotel property to start managing rooms and taking bookings.
               </p>
-
               <button
                 onClick={() => setShowAddHotel(true)}
-                className="mt-6 rounded-xl bg-indigo-600 px-6 py-3 font-semibold hover:bg-indigo-500"
+                className="mt-6 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-indigo-500"
               >
-                + Add Your First Hotel
+                + Register First Hotel
               </button>
-
             </div>
-
-          )}
-
-
-          {/* HOTEL CARDS */}
-
-          {!loading && hotels.length > 0 && (
-
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {hotels.map((hotel) => (
-
                 <div
                   key={hotel.id}
-                  className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-indigo-500/30"
+                  className={`group overflow-hidden rounded-3xl shadow-xl transition-all duration-300 hover:-translate-y-1.5 ${
+                    isNight
+                      ? "border border-white/10 bg-slate-900/80 hover:border-indigo-500/40 text-white"
+                      : "border border-slate-200 bg-white hover:border-indigo-300 text-slate-900 shadow-slate-200/50"
+                  }`}
                 >
-
-                  {/* IMAGE PLACEHOLDER */}
-
-                  <div className="flex h-44 items-center justify-center bg-gradient-to-br from-indigo-600/30 via-purple-600/10 to-slate-900">
-
-                    <span className="text-7xl">
-                      🏨
-                    </span>
-
+                  <div className="relative h-48 w-full overflow-hidden bg-slate-800">
+                    <img
+                      src={getHotelImage(hotel)}
+                      alt={hotel.name}
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute top-4 left-4 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white backdrop-blur-md">
+                      📍 {hotel.city}
+                    </div>
                   </div>
-
-
-                  {/* DETAILS */}
 
                   <div className="p-6">
-
-                    <h4 className="text-xl font-bold">
-                      {hotel.name}
-                    </h4>
-
-                    <p className="mt-2 text-indigo-400">
-                      📍 {hotel.city}
+                    <h3 className="font-heading text-xl font-bold">{hotel.name}</h3>
+                    <p
+                      className={`mt-1 text-xs line-clamp-1 ${
+                        isNight ? "text-slate-400" : "text-slate-500"
+                      }`}
+                    >
+                      📌 {hotel.address}
                     </p>
-
-                    <p className="mt-2 text-sm text-slate-400">
-                      {hotel.address}
+                    <p
+                      className={`mt-3 text-xs leading-5 line-clamp-2 ${
+                        isNight ? "text-slate-400" : "text-slate-600"
+                      }`}
+                    >
+                      {hotel.description || "Luxury property under your management."}
                     </p>
-
-
-                    {hotel.description && (
-
-                      <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
-                        {hotel.description}
-                      </p>
-
-                    )}
-
-
-                    {/* ACTIONS */}
 
                     <div className="mt-6 flex gap-3">
-
                       <button
-                        onClick={() =>
-                          navigate(
-                            `/owner/hotels/${hotel.id}`
-                          )
-                        }
-                        className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold transition hover:bg-indigo-500"
+                        onClick={() => navigate(`/owner/hotels/${hotel.id}`)}
+                        className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 py-2.5 text-xs font-bold text-white shadow transition hover:from-indigo-500 hover:to-indigo-600 cursor-pointer"
                       >
-                        Manage Rooms
+                        🛏️ Manage Rooms
                       </button>
-
                       <button
-                        onClick={() =>
-                          navigate(
-                            `/hotels/${hotel.id}`
-                          )
-                        }
-                        className="rounded-xl border border-white/10 px-4 py-3 text-sm transition hover:bg-white/5"
+                        onClick={() => navigate(`/hotels/${hotel.id}`)}
+                        className={`rounded-xl border px-4 py-2.5 text-xs font-semibold cursor-pointer ${
+                          isNight
+                            ? "border-white/10 text-slate-300 hover:bg-white/5"
+                            : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                        }`}
                       >
-                        View
+                        View Page
                       </button>
-
                     </div>
-
                   </div>
-
                 </div>
-
               ))}
-
             </div>
-
           )}
-
         </section>
 
-      </main>
+        {/* Live Guest Reservations Table */}
+        <section>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2
+                className={`font-heading text-2xl font-bold ${
+                  isNight ? "text-white" : "text-slate-900"
+                }`}
+              >
+                Live Customer Bookings
+              </h2>
+              <p
+                className={`text-xs mt-1 ${
+                  isNight ? "text-slate-400" : "text-slate-500"
+                }`}
+              >
+                Real-time guest reservations for all your hotels.
+              </p>
+            </div>
 
+            {/* Search filter */}
+            <div className="w-full sm:w-72">
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Filter by guest, hotel, or room..."
+                className={`w-full rounded-xl border px-4 py-2.5 text-xs outline-none focus:border-indigo-500 ${
+                  isNight
+                    ? "border-white/10 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-900 shadow-sm"
+                }`}
+              />
+            </div>
+          </div>
+
+          {bookings.length === 0 ? (
+            <div
+              className={`rounded-3xl border border-dashed p-14 text-center ${
+                isNight
+                  ? "border-white/15 bg-slate-900/40 text-white"
+                  : "border-slate-300 bg-white text-slate-900"
+              }`}
+            >
+              <div className="text-5xl mb-3">📅</div>
+              <h4 className="font-heading text-lg font-bold">No guest bookings yet</h4>
+              <p
+                className={`text-xs mt-1 ${
+                  isNight ? "text-slate-400" : "text-slate-500"
+                }`}
+              >
+                When travelers book rooms at your hotels, they will appear here live.
+              </p>
+            </div>
+          ) : (
+            <div
+              className={`overflow-x-auto rounded-3xl shadow-2xl backdrop-blur-xl ${
+                isNight
+                  ? "border border-white/10 bg-slate-900/80 text-slate-300"
+                  : "border border-slate-200 bg-white text-slate-700 shadow-slate-200/60"
+              }`}
+            >
+              <table className="w-full text-left text-sm">
+                <thead
+                  className={`border-b text-[11px] uppercase font-bold tracking-wider ${
+                    isNight
+                      ? "border-white/10 bg-white/5 text-slate-400"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <tr>
+                    <th className="px-6 py-4">ID</th>
+                    <th className="px-6 py-4">Guest</th>
+                    <th className="px-6 py-4">Hotel</th>
+                    <th className="px-6 py-4">Room</th>
+                    <th className="px-6 py-4">Dates</th>
+                    <th className="px-6 py-4">Total</th>
+                    <th className="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y text-xs ${
+                    isNight ? "divide-white/5" : "divide-slate-100"
+                  }`}
+                >
+                  {filteredBookings.map((b) => (
+                    <tr
+                      key={b.id}
+                      className={`transition ${
+                        isNight ? "hover:bg-white/[0.02]" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <td className="px-6 py-4 font-bold text-indigo-500">#{b.id}</td>
+                      <td className="px-6 py-4">
+                        <p
+                          className={`font-bold ${
+                            isNight ? "text-white" : "text-slate-900"
+                          }`}
+                        >
+                          {b.customer_name}
+                        </p>
+                        <p
+                          className={`text-[11px] ${
+                            isNight ? "text-slate-400" : "text-slate-500"
+                          }`}
+                        >
+                          {b.customer_email}
+                        </p>
+                      </td>
+                      <td
+                        className={`px-6 py-4 font-semibold ${
+                          isNight ? "text-white" : "text-slate-900"
+                        }`}
+                      >
+                        {b.hotel_name}
+                      </td>
+                      <td className="px-6 py-4">{b.room_type}</td>
+                      <td className="px-6 py-4">
+                        <p>In: {new Date(b.check_in).toLocaleDateString("en-IN")}</p>
+                        <p className={isNight ? "text-slate-400" : "text-slate-500"}>
+                          Out: {new Date(b.check_out).toLocaleDateString("en-IN")}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-indigo-500">₹{b.total_price}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] font-bold ${
+                            b.status === "confirmed"
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : b.status === "cancelled"
+                              ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                              : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                          }`}
+                        >
+                          {b.status.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function MetricCard({ icon, title, value, tag, color, isNight }) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-3xl p-6 shadow-xl backdrop-blur-xl transition-all ${
+        isNight
+          ? "border border-white/10 bg-slate-900/80 text-white"
+          : "border border-slate-200 bg-white text-slate-900 shadow-slate-200/50"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-3xl">{icon}</span>
+        <div className={`h-2 w-12 rounded-full bg-gradient-to-r ${color}`} />
+      </div>
+      <p className="font-heading mt-4 text-3xl font-extrabold">{value}</p>
+      <p
+        className={`text-xs font-bold uppercase tracking-wider mt-1 ${
+          isNight ? "text-slate-400" : "text-slate-500"
+        }`}
+      >
+        {title}
+      </p>
+      <p className="text-[11px] text-indigo-500 mt-2 font-medium">{tag}</p>
     </div>
   );
 }

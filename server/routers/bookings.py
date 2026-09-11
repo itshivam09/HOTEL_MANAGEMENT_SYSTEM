@@ -35,8 +35,8 @@ def create_booking(
     if overlapping:
         raise HTTPException(status_code=409, detail="Room is not available for these dates")
 
-    nights = (booking.check_out - booking.check_in).days
-    total_price = nights * room.price_per_night
+    nights = max(1, (booking.check_out - booking.check_in).days)
+    total_price = float(nights * room.price_per_night)
 
     new_booking = models.Booking(
         user_id=current_user.id,

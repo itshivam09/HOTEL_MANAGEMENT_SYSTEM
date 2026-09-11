@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import DynamicBackground from "./components/DynamicBackground";
+import DynamicCursor from "./components/DynamicCursor";
 import Home from "./pages/Home";
 import Hotels from "./pages/Hotels";
 import HotelDetails from "./pages/Hoteldetails";
@@ -13,46 +15,22 @@ import MyBookings from "./pages/MyBookings";
 function App() {
   return (
     <BrowserRouter>
+      {/* Universal Dynamic Luxury Animated Background */}
+      <DynamicBackground />
+
+      {/* Luxury Fluid Dynamic Cursor */}
+      <DynamicCursor />
+
       <Routes>
-
         <Route path="/" element={<Home />} />
-
         <Route path="/hotels" element={<Hotels />} />
-
-        <Route
-          path="/hotels/:hotelId"
-          element={<HotelDetails />}
-        />
-
-        <Route
-          path="/login"
-          element={<Login />}
-        />
-
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        <Route
-          path="/verify-otp"
-          element={<VerifyOTP />}
-        />
-
-        <Route
-          path="/owner"
-          element={<OwnerDashboard />}
-        />
-
-        <Route
-          path="/owner/hotels/:hotelId"
-          element={<ManageHotel />}
-        />
-        <Route
-         path="/my-bookings"
-         element={<MyBookings />}
-/>
-
+        <Route path="/hotels/:hotelId" element={<HotelDetails />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/owner" element={<OwnerDashboard />} />
+        <Route path="/owner/hotels/:hotelId" element={<ManageHotel />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
       </Routes>
     </BrowserRouter>
   );

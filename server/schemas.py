@@ -81,6 +81,9 @@ class OTPVerify(BaseModel):
     email: str
     otp_code: str
 
+class OTPResend(BaseModel):
+    email: str
+
     # ==========================================
 # OWNER BOOKING RESPONSE
 # ==========================================

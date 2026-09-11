@@ -1,294 +1,492 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useTheme } from "../context/ThemeContext";
 
 function Home() {
-  return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
+  const navigate = useNavigate();
+  const { isNight } = useTheme();
+  const [searchCity, setSearchCity] = useState("");
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchCity.trim()) {
+      navigate(`/hotels?city=${encodeURIComponent(searchCity.trim())}`);
+    } else {
+      navigate("/hotels");
+    }
+  };
+
+  const quickCities = ["Goa", "Mumbai", "Delhi", "Kanpur", "Jaipur", "Bangalore"];
+
+  return (
+    <div
+      className={`min-h-screen transition-colors duration-500 selection:bg-indigo-600 selection:text-white ${
+        isNight ? "text-white" : "text-slate-900"
+      }`}
+    >
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative min-h-[92vh] overflow-hidden">
-
-        {/* Background */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/80 to-slate-900/20 z-10" />
-
+      {/* ============================================================
+          HERO SECTION
+      ============================================================ */}
+      <section className="relative min-h-[96vh] overflow-hidden pt-28 pb-16 flex items-center">
+        
+        {/* Background Ambient Imagery & Gradients */}
+        <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=2000&q=90"
-            alt="Luxury Hotel"
-            className="h-full w-full object-cover"
+            src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=2200&q=90"
+            alt="Luxury Palace Hotel"
+            className={`h-full w-full object-cover object-center scale-105 transition-all duration-1000 ${
+              isNight ? "opacity-25" : "opacity-35"
+            }`}
+          />
+          <div
+            className={`absolute inset-0 transition-colors duration-700 ${
+              isNight
+                ? "bg-gradient-to-t from-[#070A13] via-[#070A13]/85 to-transparent"
+                : "bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent"
+            }`}
+          />
+          <div
+            className={`absolute inset-0 transition-colors duration-700 ${
+              isNight
+                ? "bg-gradient-to-r from-[#070A13] via-[#070A13]/70 to-transparent"
+                : "bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/60 to-transparent"
+            }`}
           />
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-20 mx-auto flex min-h-[92vh] w-full max-w-7xl items-center px-6 py-24">
-
-          <div className="max-w-3xl text-white">
-
-            {/* Badge */}
-            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium backdrop-blur-md">
-              <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-              Find your perfect stay
+        <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 w-full">
+          
+          <div className="max-w-3xl">
+            {/* Luxury Badge */}
+            <div
+              className={`inline-flex items-center gap-2.5 rounded-full px-4 py-2 text-xs font-bold backdrop-blur-md shadow-lg transition-all ${
+                isNight
+                  ? "border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 shadow-indigo-950/40"
+                  : "border border-indigo-200 bg-white/90 text-indigo-700 shadow-slate-300/40"
+              }`}
+            >
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>OVER 500+ HANDPICKED LUXURY HOTELS & RESORTS</span>
             </div>
 
-            {/* Heading */}
-            <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
-              Stay somewhere
-              <span className="mt-2 block text-indigo-400">
-                unforgettable.
+            {/* Headline */}
+            <h1
+              className={`font-heading mt-6 text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl leading-[1.05] ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
+              Stay Somewhere <br />
+              <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500 bg-clip-text text-transparent">
+                Extraordinary.
               </span>
             </h1>
 
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-200 md:text-xl">
-              Discover beautiful hotels, comfortable rooms and memorable
-              experiences. Everything you need for your perfect getaway.
+            {/* Subheading */}
+            <p
+              className={`mt-6 max-w-2xl text-lg leading-8 md:text-xl ${
+                isNight ? "text-slate-300" : "text-slate-600"
+              }`}
+            >
+              Discover opulent villas, boutique suites, and scenic retreats with seamless instant booking and verified guest satisfaction.
             </p>
 
-            {/* Search Card */}
-            <div className="mt-10 max-w-4xl rounded-3xl border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
-
-              <div className="flex flex-col gap-3 md:flex-row">
-
-                {/* Location */}
-                <div className="flex flex-1 items-center rounded-2xl bg-white px-5">
-
-                  <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-lg">
-                    📍
-                  </div>
-
+            {/* Glassmorphic Search Bar */}
+            <form
+              onSubmit={handleSearch}
+              className={`mt-10 max-w-3xl rounded-3xl p-3 backdrop-blur-2xl transition-all duration-300 shadow-2xl ${
+                isNight
+                  ? "border border-white/15 bg-slate-900/80 shadow-indigo-950/50"
+                  : "border border-slate-200 bg-white/90 shadow-slate-300/60"
+              }`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row items-center">
+                
+                {/* City Input */}
+                <div
+                  className={`flex flex-1 items-center gap-3 rounded-2xl px-4 py-3 w-full border transition focus-within:border-indigo-500 ${
+                    isNight
+                      ? "bg-white/5 border-white/5 text-white"
+                      : "bg-slate-50 border-slate-200 text-slate-900"
+                  }`}
+                >
+                  <span className="text-xl">📍</span>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Location
+                    <p
+                      className={`text-[10px] font-bold uppercase tracking-wider ${
+                        isNight ? "text-slate-400" : "text-slate-500"
+                      }`}
+                    >
+                      Destination / City
                     </p>
-
                     <input
                       type="text"
-                      placeholder="Where do you want to stay?"
-                      className="w-full bg-transparent py-1 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
+                      value={searchCity}
+                      onChange={(e) => setSearchCity(e.target.value)}
+                      placeholder="e.g. Goa, Mumbai, Delhi, Kanpur..."
+                      className={`w-full bg-transparent text-sm font-semibold outline-none ${
+                        isNight
+                          ? "text-white placeholder:text-slate-500"
+                          : "text-slate-900 placeholder:text-slate-400"
+                      }`}
                     />
                   </div>
-
                 </div>
 
-                {/* Date */}
-                <div className="flex items-center rounded-2xl bg-white px-5 md:w-48">
-
-                  <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
-                    📅
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Check-in
-                    </p>
-
-                    <p className="text-sm font-medium text-slate-800">
-                      Add dates
-                    </p>
-                  </div>
-
-                </div>
-
-                {/* Guests */}
-                <div className="flex items-center rounded-2xl bg-white px-5 md:w-48">
-
-                  <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
-                    👤
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Guests
-                    </p>
-
-                    <p className="text-sm font-medium text-slate-800">
-                      2 Guests
-                    </p>
-                  </div>
-
-                </div>
-
-                {/* Button */}
-                <Link
-                  to="/hotels"
-                  className="flex items-center justify-center rounded-2xl bg-indigo-600 px-8 py-5 font-semibold text-white shadow-lg shadow-indigo-900/30 transition duration-300 hover:bg-indigo-500 hover:scale-[1.02]"
+                {/* Search Button */}
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-8 py-4 font-heading font-bold text-white shadow-xl shadow-indigo-600/30 transition hover:scale-[1.02] hover:shadow-indigo-500/50 cursor-pointer"
                 >
-                  Search
-                  <span className="ml-2">→</span>
-                </Link>
+                  <span>Search Stays</span>
+                  <span>→</span>
+                </button>
 
               </div>
 
-            </div>
+              {/* Quick City Pills */}
+              <div
+                className={`mt-3 flex flex-wrap items-center gap-2 px-2 pt-2 border-t ${
+                  isNight ? "border-white/5" : "border-slate-100"
+                }`}
+              >
+                <span
+                  className={`text-xs font-semibold ${
+                    isNight ? "text-slate-400" : "text-slate-500"
+                  }`}
+                >
+                  Popular:
+                </span>
+                {quickCities.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      setSearchCity(c);
+                      navigate(`/hotels?city=${encodeURIComponent(c)}`);
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition cursor-pointer ${
+                      isNight
+                        ? "border border-white/10 bg-white/5 text-slate-300 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-white"
+                        : "border border-slate-200 bg-slate-100 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </form>
 
-            {/* Trust */}
-            <div className="mt-7 flex flex-wrap items-center gap-6 text-sm text-slate-300">
-
+            {/* Social Proof */}
+            <div
+              className={`mt-8 flex flex-wrap items-center gap-6 text-sm ${
+                isNight ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-amber-400 font-bold">★★★★★</span>
+                <span
+                  className={`font-semibold ${
+                    isNight ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  4.9/5 Average Rating
+                </span>
+              </div>
+              <div
+                className={`h-4 w-px ${
+                  isNight ? "bg-white/20" : "bg-slate-300"
+                }`}
+              />
               <div className="flex items-center gap-2">
-                <span className="text-yellow-400">★★★★★</span>
-                <span>4.9/5 rating</span>
+                <span>🛡️</span>
+                <span>100% Verified Reservations</span>
               </div>
-
-              <div className="h-4 w-px bg-white/30"></div>
-
-              <p>Trusted by 1,000+ guests</p>
-
             </div>
 
           </div>
 
         </div>
 
-        {/* Bottom Stats */}
-        <div className="absolute bottom-8 left-1/2 z-30 hidden w-full max-w-7xl -translate-x-1/2 px-6 lg:block">
-
-          <div className="ml-auto flex w-fit items-center gap-10 rounded-2xl border border-white/20 bg-black/30 px-8 py-5 text-white backdrop-blur-xl">
-
-            <Stat number="100+" label="Hotels" />
-
-            <div className="h-10 w-px bg-white/20"></div>
-
-            <Stat number="500+" label="Rooms" />
-
-            <div className="h-10 w-px bg-white/20"></div>
-
-            <Stat number="1K+" label="Happy Guests" />
-
-          </div>
-
-        </div>
-
       </section>
 
-      {/* Features */}
-      <section className="bg-white py-24">
-
-        <div className="mx-auto max-w-7xl px-6">
-
-          {/* Heading */}
-          <div className="mx-auto mb-16 max-w-2xl text-center">
-
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">
-              Why StayEasy?
-            </p>
-
-            <h2 className="mt-4 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
-              Everything you need
-              <span className="block text-indigo-600">
-                for a perfect stay
-              </span>
-            </h2>
-
-            <p className="mt-5 text-lg leading-8 text-slate-500">
-              From finding the right hotel to making your reservation,
-              StayEasy makes the entire experience simple.
-            </p>
-
-          </div>
-
-          {/* Feature Cards */}
-          <div className="grid gap-7 md:grid-cols-3">
-
-            <Feature
-              icon="🏨"
-              title="Quality Hotels"
-              description="Discover carefully managed hotels with comfortable rooms, premium amenities and great locations."
-            />
-
-            <Feature
-              icon="⚡"
-              title="Easy Booking"
-              description="Find your perfect room and complete your booking in just a few simple clicks."
-            />
-
-            <Feature
-              icon="🔒"
-              title="Secure & Reliable"
-              description="Your account and booking information are protected with secure authentication."
-            />
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* CTA */}
-      <section className="bg-slate-950 py-24">
-
-        <div className="mx-auto max-w-5xl px-6 text-center">
-
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-950 to-slate-900 px-8 py-16 md:px-16">
-
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-400">
-              Start your journey
-            </p>
-
-            <h2 className="mt-4 text-4xl font-bold text-white md:text-5xl">
-              Ready for your next adventure?
-            </h2>
-
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-400">
-              Explore our collection of hotels and find a place that feels
-              just right for you.
-            </p>
-
+      {/* ============================================================
+          FEATURED DESTINATIONS
+      ============================================================ */}
+      <section
+        className={`relative py-24 border-t transition-colors duration-500 ${
+          isNight
+            ? "bg-slate-950/60 border-white/5"
+            : "bg-slate-100/60 border-slate-200/80"
+        }`}
+      >
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">
+                Trending Locations
+              </p>
+              <h2
+                className={`font-heading mt-2 text-3xl font-extrabold sm:text-4xl ${
+                  isNight ? "text-white" : "text-slate-900"
+                }`}
+              >
+                Explore Popular Destinations
+              </h2>
+            </div>
             <Link
               to="/hotels"
-              className="mt-8 inline-flex items-center rounded-xl bg-indigo-600 px-8 py-4 font-semibold text-white transition hover:bg-indigo-500"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-500 transition hover:text-indigo-600"
             >
-              Explore Hotels
-              <span className="ml-2">→</span>
+              <span>View All Hotels</span>
+              <span>→</span>
             </Link>
+          </div>
 
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <DestinationCard
+              name="Goa"
+              tag="Beach & Sunset Villas"
+              image="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80"
+              onClick={() => navigate("/hotels?city=Goa")}
+              isNight={isNight}
+            />
+
+            <DestinationCard
+              name="Mumbai"
+              tag="Skyline & Harbor Luxury"
+              image="https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=800&q=80"
+              onClick={() => navigate("/hotels?city=Mumbai")}
+              isNight={isNight}
+            />
+
+            <DestinationCard
+              name="Jaipur"
+              tag="Royal Palaces & Haveli"
+              image="https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80"
+              onClick={() => navigate("/hotels?city=Jaipur")}
+              isNight={isNight}
+            />
+
+            <DestinationCard
+              name="Delhi"
+              tag="Heritage & Boutique Suites"
+              image="https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80"
+              onClick={() => navigate("/hotels?city=Delhi")}
+              isNight={isNight}
+            />
           </div>
 
         </div>
-
       </section>
 
+      {/* ============================================================
+          LUXURY EXPERIENCE & BENEFITS
+      ============================================================ */}
+      <section className="relative py-28 overflow-hidden">
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          
+          <div className="mx-auto max-w-2xl text-center mb-16">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">
+              The StayEasy Standard
+            </p>
+            <h2
+              className={`font-heading mt-3 text-4xl font-extrabold sm:text-5xl ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
+              Why Discerning Travelers Choose Us
+            </h2>
+            <p
+              className={`mt-4 text-base ${
+                isNight ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              From instant verified confirmations to round-the-clock assistance, we redefine hospitality.
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            <FeatureCard
+              icon="🏰"
+              title="Curated Luxury Facades"
+              description="Every listed property is vetted for comfort, hygiene, premium architecture, and world-class hospitality."
+              isNight={isNight}
+            />
+
+            <FeatureCard
+              icon="⚡"
+              title="Instant Real-Time Booking"
+              description="Zero hidden charges, transparent pricing per night, and guaranteed instant confirmation with smart date controls."
+              isNight={isNight}
+            />
+
+            <FeatureCard
+              icon="🔒"
+              title="Safe & Verified Accounts"
+              description="Protected authentication with OTP verification, enterprise-level JWT encryption, and dedicated owner management."
+              isNight={isNight}
+            />
+          </div>
+
+        </div>
+      </section>
+
+      {/* ============================================================
+          CTA BANNER
+      ============================================================ */}
+      <section className="relative py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div
+            className={`relative overflow-hidden rounded-3xl p-10 md:p-16 text-center shadow-2xl transition-all ${
+              isNight
+                ? "border border-indigo-500/30 bg-gradient-to-br from-indigo-950/80 via-slate-900 to-purple-950/80 text-white"
+                : "border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-purple-50 text-slate-900"
+            }`}
+          >
+            <span className="text-5xl">🌟</span>
+            
+            <h2
+              className={`font-heading mt-6 text-3xl font-extrabold sm:text-4xl md:text-5xl ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
+              Ready for your next unforgettable stay?
+            </h2>
+
+            <p
+              className={`mx-auto mt-4 max-w-xl text-base ${
+                isNight ? "text-slate-300" : "text-slate-600"
+              }`}
+            >
+              Browse our curated portfolio of premium accommodations and book your perfect room in seconds.
+            </p>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link
+                to="/hotels"
+                className={`rounded-2xl px-8 py-4 font-heading font-bold shadow-xl transition hover:scale-105 ${
+                  isNight
+                    ? "bg-white text-slate-950 hover:bg-slate-100"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30"
+                }`}
+              >
+                Browse All Hotels →
+              </Link>
+              <Link
+                to="/register"
+                className={`rounded-2xl border px-8 py-4 font-heading font-bold transition ${
+                  isNight
+                    ? "border-white/20 bg-white/5 text-white hover:bg-white/10"
+                    : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+                }`}
+              >
+                Join as Hotel Owner
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          FOOTER
+      ============================================================ */}
+      <footer
+        className={`border-t py-12 transition-colors duration-500 ${
+          isNight
+            ? "border-white/10 bg-[#070A13] text-slate-400"
+            : "border-slate-200 bg-slate-100 text-slate-600"
+        }`}
+      >
+        <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🏨</span>
+            <span
+              className={`font-heading text-lg font-bold ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
+              StayEasy Luxury & Resorts
+            </span>
+          </div>
+          <p className="text-xs">
+            © {new Date().getFullYear()} StayEasy Hotel Management System. All rights reserved.
+          </p>
+          <div className="flex gap-6 text-xs">
+            <Link to="/hotels" className="hover:text-indigo-500 transition">Hotels</Link>
+            <Link to="/login" className="hover:text-indigo-500 transition">Sign In</Link>
+            <Link to="/register" className="hover:text-indigo-500 transition">Partner With Us</Link>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }
 
-function Stat({ number, label }) {
+function DestinationCard({ name, tag, image, onClick, isNight }) {
   return (
-    <div>
-      <p className="text-2xl font-bold">
-        {number}
-      </p>
-
-      <p className="mt-1 text-xs uppercase tracking-wider text-slate-300">
-        {label}
-      </p>
+    <div
+      onClick={onClick}
+      className={`group relative h-80 overflow-hidden rounded-3xl cursor-pointer shadow-xl transition duration-500 hover:-translate-y-2 ${
+        isNight
+          ? "border border-white/10 hover:border-indigo-500/50"
+          : "border border-slate-200 hover:border-indigo-400"
+      }`}
+    >
+      <img
+        src={image}
+        alt={name}
+        className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+      <div className="absolute bottom-6 left-6 right-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">{tag}</p>
+        <h3 className="font-heading text-2xl font-bold text-white mt-1 group-hover:text-indigo-300 transition-colors">
+          {name}
+        </h3>
+      </div>
     </div>
   );
 }
 
-function Feature({ icon, title, description }) {
+function FeatureCard({ icon, title, description, isNight }) {
   return (
-    <div className="group rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-indigo-200 hover:shadow-xl">
-
-      <div className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-3xl transition duration-300 group-hover:bg-indigo-600 group-hover:scale-110">
+    <div
+      className={`group relative rounded-3xl p-8 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-2 ${
+        isNight
+          ? "border border-white/10 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-900/90 text-white"
+          : "border border-slate-200 bg-white/80 hover:border-indigo-300 hover:bg-white text-slate-900"
+      }`}
+    >
+      <div
+        className={`flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-inner border transition duration-300 group-hover:scale-110 ${
+          isNight
+            ? "bg-gradient-to-tr from-indigo-600/30 to-purple-600/30 border-white/10"
+            : "bg-gradient-to-tr from-indigo-100 to-purple-100 border-indigo-200"
+        }`}
+      >
         {icon}
       </div>
-
-      <h3 className="text-xl font-bold text-slate-900">
+      <h3
+        className={`font-heading mt-6 text-xl font-bold ${
+          isNight ? "text-white" : "text-slate-900"
+        }`}
+      >
         {title}
       </h3>
-
-      <p className="mt-4 leading-7 text-slate-500">
+      <p
+        className={`mt-3 text-sm leading-6 ${
+          isNight ? "text-slate-400" : "text-slate-600"
+        }`}
+      >
         {description}
       </p>
-
-      <div className="mt-6 flex items-center text-sm font-semibold text-indigo-600">
-        Learn more
-        <span className="ml-2 transition group-hover:translate-x-1">
-          →
-        </span>
-      </div>
-
     </div>
   );
 }

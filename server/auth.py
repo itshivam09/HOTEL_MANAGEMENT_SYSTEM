@@ -13,7 +13,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 #JWT token sign karne ka method (industry standard choice)
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
 
 pwd_context = PasswordHash.recommended()
 #ek object banaya jo secure password hashing algorithm use karega
@@ -32,14 +32,10 @@ def create_access_token(data : dict):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp" : expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-#data.copy() — jo dictionary aayi (jaise {"sub": "raj@example.com"}), uski copy banayi
-# expire = ... — current time + 60 minutes calculate kiya
-# to_encode.update({"exp": expire}) — expiry time ko dictionary mein add kiya
-# jwt.encode(...) — poori dictionary ko SECRET_KEY se sign karke ek JWT token string bana di (jaise eyJhbGc...)
 
 def decode_access_token(token : str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None

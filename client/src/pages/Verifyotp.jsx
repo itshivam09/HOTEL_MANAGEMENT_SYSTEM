@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
 import Navbar from "../components/Navbar";
 import API from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 
 function VerifyOTP() {
   const navigate = useNavigate();
-
+  const { isNight } = useTheme();
   const email = localStorage.getItem("verificationEmail");
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -24,7 +24,7 @@ function VerifyOTP() {
     }
   }, [email]);
 
-  // Resend timer
+  // Resend timer countdown
   useEffect(() => {
     if (resendTimer <= 0) return;
 
@@ -77,7 +77,6 @@ function VerifyOTP() {
     if (!pastedData) return;
 
     const newOtp = ["", "", "", "", "", ""];
-
     pastedData.split("").forEach((digit, index) => {
       newOtp[index] = digit;
     });
@@ -92,7 +91,6 @@ function VerifyOTP() {
     e.preventDefault();
 
     const otpCode = otp.join("");
-
     if (otpCode.length !== 6) {
       setError("Please enter the complete 6-digit OTP.");
       return;
@@ -108,23 +106,19 @@ function VerifyOTP() {
         otp_code: otpCode,
       });
 
-      setSuccess("Account verified successfully!");
-
+      setSuccess("Account verified successfully! Redirecting to login...");
       localStorage.removeItem("verificationEmail");
 
       setTimeout(() => {
         navigate("/login");
       }, 1500);
-
     } catch (err) {
       setError(
         err.response?.data?.detail ||
-        "Invalid or expired OTP."
+          "Invalid or expired OTP. Please try again or request a new code."
       );
-
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-
     } finally {
       setLoading(false);
     }
@@ -141,245 +135,210 @@ function VerifyOTP() {
         email: email,
       });
 
-      setSuccess("A new verification code has been sent!");
-
+      setSuccess("A brand-new verification code has been dispatched to your inbox!");
       setResendTimer(30);
-
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-
     } catch (err) {
       setError(
-        err.response?.data?.detail ||
-        "Unable to resend OTP. Please try again."
+        err.response?.data?.detail || "Unable to resend OTP. Please try again."
       );
     }
   };
 
   if (!email) {
     return (
-      <div className="min-h-screen bg-slate-50">
-
+      <div
+        className={`min-h-screen flex flex-col justify-between transition-colors duration-500 ${
+          isNight ? "text-white" : "text-slate-900"
+        }`}
+      >
         <Navbar />
 
-        <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pt-24">
-
-          {/* Background decoration */}
-          <div className="absolute left-10 top-32 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
-
-          <div className="absolute bottom-10 right-10 h-72 w-72 rounded-full bg-purple-200/40 blur-3xl" />
-
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-2xl shadow-slate-200">
-
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-red-50 text-4xl">
+        <main className="relative flex flex-1 items-center justify-center px-6 pt-32 pb-16">
+          <div
+            className={`relative w-full max-w-md text-center rounded-3xl p-8 shadow-2xl backdrop-blur-2xl ${
+              isNight
+                ? "border border-white/10 bg-slate-900/80 text-white"
+                : "border border-slate-200 bg-white/90 text-slate-900 shadow-slate-300/50"
+            }`}
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/20 text-3xl text-amber-500">
               ⚠️
             </div>
-
-            <h1 className="mt-6 text-2xl font-bold text-slate-900">
-              No verification request found
+            <h1 className="font-heading mt-6 text-2xl font-bold">
+              No Verification Session Found
             </h1>
-
-            <p className="mt-3 leading-7 text-slate-500">
-              Your verification session could not be found.
-              Please register your account first.
+            <p
+              className={`mt-3 text-sm ${
+                isNight ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
+              We couldn't detect an active registration session. Please sign up or log in to continue.
             </p>
-
             <Link
               to="/register"
-              className="mt-7 inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-500 shadow-lg shadow-indigo-600/30"
             >
-              Register Account
-              <span className="ml-2">→</span>
+              Go to Registration →
             </Link>
-
           </div>
-
         </main>
-
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-
+    <div
+      className={`min-h-screen flex flex-col justify-between transition-colors duration-500 selection:bg-indigo-600 selection:text-white ${
+        isNight ? "text-white" : "text-slate-900"
+      }`}
+    >
       <Navbar />
 
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pb-10 pt-32">
-
-        {/* Animated Background */}
-        <div className="absolute inset-0 overflow-hidden">
-
-          <div className="absolute -left-20 top-20 h-80 w-80 animate-pulse rounded-full bg-indigo-200/40 blur-3xl" />
-
-          <div
-            className="absolute -right-20 top-1/3 h-96 w-96 animate-pulse rounded-full bg-purple-200/40 blur-3xl"
-            style={{ animationDelay: "1s" }}
-          />
-
-          <div
-            className="absolute bottom-0 left-1/3 h-72 w-72 animate-pulse rounded-full bg-blue-200/30 blur-3xl"
-            style={{ animationDelay: "2s" }}
-          />
-
-        </div>
-
-        {/* Main Card */}
-        <div className="relative w-full max-w-lg">
-
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
-
-            {/* Top Gradient */}
-            <div className="h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600" />
-
-            <div className="p-8 sm:p-10">
-
-              {/* Icon */}
-              <div className="text-center">
-
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-50 text-4xl shadow-inner">
-                  ✉️
-                </div>
-
-                <h1 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
-                  Verify your email
-                </h1>
-
-                <p className="mt-3 text-slate-500">
-                  We've sent a 6-digit verification code to
-                </p>
-
-                <p className="mt-2 font-semibold text-indigo-600 break-all">
-                  {email}
-                </p>
-
-              </div>
-
-              {/* Status Messages */}
-              {error && (
-                <div className="mt-7 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-                  <span className="text-lg">⚠️</span>
-
-                  <p>{error}</p>
-                </div>
-              )}
-
-              {success && (
-                <div className="mt-7 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-600">
-                  <span className="text-lg">✓</span>
-
-                  <p>{success}</p>
-                </div>
-              )}
-
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="mt-8">
-
-                <label className="mb-4 block text-center text-sm font-semibold text-slate-700">
-                  Enter verification code
-                </label>
-
-                {/* OTP Boxes */}
-                <div
-                  className="flex justify-center gap-2"
-                  onPaste={handlePaste}
-                >
-
-                  {otp.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={(element) => {
-                        inputRefs.current[index] = element;
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) =>
-                        handleChange(e.target.value, index)
-                      }
-                      onKeyDown={(e) =>
-                        handleKeyDown(e, index)
-                      }
-                      className={`h-11 w-10 rounded-lg border-2 bg-slate-50 text-center text-lg font-bold text-slate-900 outline-none transition-all duration-200 ${
-                        digit
-                          ? "border-indigo-500 bg-indigo-50 text-indigo-600"
-                          : "border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                      }`}
-                    />
-                  ))}
-
-                </div>
-
-                {/* Verify Button */}
-                <button
-                  type="submit"
-                  disabled={loading || otp.join("").length !== 6}
-                  className="mt-8 flex w-full items-center justify-center rounded-xl bg-indigo-600 py-4 font-semibold text-white shadow-lg shadow-indigo-200 transition-all duration-300 hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                >
-
-                  {loading ? (
-                    <>
-                      <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      Verify Account
-                      <span className="ml-2">→</span>
-                    </>
-                  )}
-
-                </button>
-
-              </form>
-
-              {/* Resend */}
-              <div className="mt-7 text-center">
-
-                <p className="text-sm text-slate-500">
-                  Didn't receive the code?
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendTimer > 0}
-                  className={`mt-2 text-sm font-semibold transition ${
-                    resendTimer > 0
-                      ? "cursor-not-allowed text-slate-400"
-                      : "text-indigo-600 hover:text-indigo-700"
-                  }`}
-                >
-                  {resendTimer > 0
-                    ? `Resend code in ${resendTimer}s`
-                    : "Resend verification code"}
-                </button>
-
-              </div>
-
-              {/* Security Info */}
-              <div className="mt-8 border-t border-slate-100 pt-6">
-
-                <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                  <span>🔒</span>
-
-                  <span>
-                    Your verification code is secure and private.
-                  </span>
-
-                </div>
-
-              </div>
-
+      <main className="relative flex flex-1 items-center justify-center px-6 pt-32 pb-16">
+        <div className="relative w-full max-w-md">
+          {/* Header Branding */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-3xl shadow-xl shadow-indigo-600/30">
+              ✉️
             </div>
-
+            <h1
+              className={`font-heading mt-6 text-3xl font-extrabold tracking-tight ${
+                isNight ? "text-white" : "text-slate-900"
+              }`}
+            >
+              Verify Security Code
+            </h1>
+            <p
+              className={`mt-2 text-xs font-medium ${
+                isNight ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
+              We sent a 6-digit confirmation code to
+            </p>
+            <p className="mt-1 text-xs font-bold text-indigo-500 break-all">
+              {email}
+            </p>
           </div>
 
+          {/* Form Card */}
+          <div
+            className={`rounded-3xl p-8 shadow-2xl backdrop-blur-2xl transition-all ${
+              isNight
+                ? "border border-white/10 bg-slate-900/80 text-white"
+                : "border border-slate-200 bg-white/90 text-slate-900 shadow-slate-300/50"
+            }`}
+          >
+            {/* Status Messages */}
+            {error && (
+              <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400">
+                ⚠️ {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-500">
+                ✓ {success}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <label
+                className={`mb-4 block text-center text-xs font-bold uppercase tracking-wider ${
+                  isNight ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Enter 6-Digit Passcode
+              </label>
+
+              {/* OTP Boxes */}
+              <div className="flex justify-center gap-2.5 sm:gap-3" onPaste={handlePaste}>
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(element) => {
+                      inputRefs.current[index] = element;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleChange(e.target.value, index)}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    className={`h-12 w-11 sm:h-14 sm:w-12 rounded-2xl border text-center font-heading text-xl font-bold outline-none transition-all duration-200 ${
+                      digit
+                        ? isNight
+                          ? "border-indigo-500 bg-indigo-600/20 text-indigo-300 shadow-lg shadow-indigo-600/20"
+                          : "border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm"
+                        : isNight
+                        ? "border-white/10 bg-slate-950 text-white focus:border-indigo-500 focus:bg-slate-900"
+                        : "border-slate-300 bg-slate-50 text-slate-900 focus:border-indigo-500 focus:bg-white"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Verify Button */}
+              <button
+                type="submit"
+                disabled={loading || otp.join("").length !== 6}
+                className="mt-8 flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 py-4 font-heading font-bold text-white shadow-xl shadow-indigo-600/30 transition hover:scale-[1.01] hover:shadow-indigo-500/50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Verifying Code...
+                  </>
+                ) : (
+                  <>
+                    Confirm & Activate Account →
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Resend Action */}
+            <div
+              className={`mt-6 text-center border-t pt-6 ${
+                isNight ? "border-white/5" : "border-slate-100"
+              }`}
+            >
+              <p
+                className={`text-xs ${
+                  isNight ? "text-slate-400" : "text-slate-500"
+                }`}
+              >
+                Didn't receive the email?
+              </p>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendTimer > 0}
+                className={`mt-2 text-xs font-bold transition cursor-pointer ${
+                  resendTimer > 0
+                    ? isNight ? "cursor-not-allowed text-slate-500" : "cursor-not-allowed text-slate-400"
+                    : "text-indigo-500 hover:text-indigo-600 underline underline-offset-4"
+                }`}
+              >
+                {resendTimer > 0
+                  ? `Resend security code in ${resendTimer}s`
+                  : "Resend verification email"}
+              </button>
+            </div>
+
+            {/* Security Guarantee */}
+            <div
+              className={`mt-4 flex items-center justify-center gap-2 text-[11px] ${
+                isNight ? "text-slate-500" : "text-slate-400"
+              }`}
+            >
+              <span>🔒</span>
+              <span>256-Bit SSL Encrypted Verification</span>
+            </div>
+          </div>
         </div>
-
       </main>
-
     </div>
   );
 }

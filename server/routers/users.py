@@ -78,6 +78,9 @@ def verify_otp(data: schemas.OTPVerify, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="OTP expired")
 
     user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     user.is_verified = True
     db.commit()
 
@@ -85,3 +88,29 @@ def verify_otp(data: schemas.OTPVerify, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Account verified successfully"}
+
+
+@router.post("/resend-otp")
+def resend_otp(data: schemas.OTPResend, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Account is already verified")
+
+    # Clean old OTPs for this email
+    db.query(models.OTP).filter(models.OTP.email == data.email).delete()
+
+    otp_code = generate_otp()
+    new_otp = models.OTP(
+        email=data.email,
+        otp_code=otp_code,
+        expires_at=datetime.utcnow() + timedelta(minutes=5)
+    )
+    db.add(new_otp)
+    db.commit()
+
+    send_otp_email(data.email, otp_code)
+
+    return {"message": "Verification code resent successfully"}

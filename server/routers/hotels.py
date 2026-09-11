@@ -77,6 +77,25 @@ def my_hotels(
 
 
 # =========================================================
+# GET SINGLE HOTEL BY ID
+# Public endpoint
+# =========================================================
+
+@router.get("/{hotel_id}", response_model=schemas.HotelOut)
+def get_hotel(
+    hotel_id: int,
+    db: Session = Depends(get_db)
+):
+    hotel = db.query(models.Hotel).filter(models.Hotel.id == hotel_id).first()
+    if not hotel:
+        raise HTTPException(
+            status_code=404,
+            detail="Hotel not found"
+        )
+    return hotel
+
+
+# =========================================================
 # UPDATE HOTEL
 # =========================================================
 
