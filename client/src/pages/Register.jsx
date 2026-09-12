@@ -36,7 +36,7 @@ function Register() {
 
       // Store email for OTP verification step
       localStorage.setItem("verificationEmail", form.email);
-      navigate("/verify-otp");
+      navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       setError(
         err.response?.data?.detail || "Registration failed. Please try again."

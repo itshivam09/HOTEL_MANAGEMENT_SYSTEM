@@ -1,26 +1,38 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import API from "../services/api";
 import { useTheme } from "../context/ThemeContext";
 
 function VerifyOTP() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isNight } = useTheme();
-  const email = localStorage.getItem("verificationEmail");
+
+  const initialEmail = searchParams.get("email") || localStorage.getItem("verificationEmail") || "";
+  const [email, setEmail] = useState(initialEmail);
+  const [isEditingEmail, setIsEditingEmail] = useState(!initialEmail);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
 
   const inputRefs = useRef([]);
 
-  // Auto focus first input
+  // Auto focus first OTP input when email is set and not editing
+  useEffect(() => {
+    if (email && !isEditingEmail) {
+      inputRefs.current[0]?.focus();
+    }
+  }, [email, isEditingEmail]);
+
+  // Sync to localStorage when email changes
   useEffect(() => {
     if (email) {
-      inputRefs.current[0]?.focus();
+      localStorage.setItem("verificationEmail", email);
     }
   }, [email]);
 
@@ -45,7 +57,7 @@ function VerifyOTP() {
     setError("");
     setSuccess("");
 
-    // Move to next input
+    // Move to next input box
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -90,9 +102,15 @@ function VerifyOTP() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!email.trim()) {
+      setError("Please specify a valid email address.");
+      setIsEditingEmail(true);
+      return;
+    }
+
     const otpCode = otp.join("");
     if (otpCode.length !== 6) {
-      setError("Please enter the complete 6-digit OTP.");
+      setError("Please enter the complete 6-digit OTP code.");
       return;
     }
 
@@ -101,21 +119,21 @@ function VerifyOTP() {
       setSuccess("");
       setLoading(true);
 
-      await API.post("/users/verify-otp", {
-        email: email,
+      const response = await API.post("/users/verify-otp", {
+        email: email.trim(),
         otp_code: otpCode,
       });
 
-      setSuccess("Account verified successfully! Redirecting to login...");
+      setSuccess(response.data?.message || "Account verified successfully! Redirecting to login...");
       localStorage.removeItem("verificationEmail");
 
       setTimeout(() => {
         navigate("/login");
-      }, 1500);
+      }, 1400);
     } catch (err) {
       setError(
         err.response?.data?.detail ||
-          "Invalid or expired OTP. Please try again or request a new code."
+          "Invalid or expired OTP. Please verify the code or request a new one."
       );
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
@@ -125,68 +143,36 @@ function VerifyOTP() {
   };
 
   const handleResend = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address first.");
+      setIsEditingEmail(true);
+      return;
+    }
+
     if (resendTimer > 0) return;
 
     try {
       setError("");
       setSuccess("");
+      setResending(true);
 
-      await API.post("/users/resend-otp", {
-        email: email,
+      const response = await API.post("/users/resend-otp", {
+        email: email.trim(),
       });
 
-      setSuccess("A brand-new verification code has been dispatched to your inbox!");
+      setSuccess(response.data?.message || "A fresh verification code has been dispatched to your email!");
       setResendTimer(30);
       setOtp(["", "", "", "", "", ""]);
+      setIsEditingEmail(false);
       inputRefs.current[0]?.focus();
     } catch (err) {
       setError(
-        err.response?.data?.detail || "Unable to resend OTP. Please try again."
+        err.response?.data?.detail || "Unable to resend OTP. Please check the email address and try again."
       );
+    } finally {
+      setResending(false);
     }
   };
-
-  if (!email) {
-    return (
-      <div
-        className={`min-h-screen flex flex-col justify-between transition-colors duration-500 ${
-          isNight ? "text-white" : "text-slate-900"
-        }`}
-      >
-        <Navbar />
-
-        <main className="relative flex flex-1 items-center justify-center px-6 pt-32 pb-16">
-          <div
-            className={`relative w-full max-w-md text-center rounded-3xl p-8 shadow-2xl backdrop-blur-2xl ${
-              isNight
-                ? "border border-white/10 bg-slate-900/80 text-white"
-                : "border border-slate-200 bg-white/90 text-slate-900 shadow-slate-300/50"
-            }`}
-          >
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/20 text-3xl text-amber-500">
-              ⚠️
-            </div>
-            <h1 className="font-heading mt-6 text-2xl font-bold">
-              No Verification Session Found
-            </h1>
-            <p
-              className={`mt-3 text-sm ${
-                isNight ? "text-slate-400" : "text-slate-500"
-              }`}
-            >
-              We couldn't detect an active registration session. Please sign up or log in to continue.
-            </p>
-            <Link
-              to="/register"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-500 shadow-lg shadow-indigo-600/30"
-            >
-              Go to Registration →
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -198,6 +184,7 @@ function VerifyOTP() {
 
       <main className="relative flex flex-1 items-center justify-center px-6 pt-32 pb-16">
         <div className="relative w-full max-w-md">
+          
           {/* Header Branding */}
           <div className="mb-8 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-3xl shadow-xl shadow-indigo-600/30">
@@ -215,10 +202,7 @@ function VerifyOTP() {
                 isNight ? "text-slate-400" : "text-slate-500"
               }`}
             >
-              We sent a 6-digit confirmation code to
-            </p>
-            <p className="mt-1 text-xs font-bold text-indigo-500 break-all">
-              {email}
+              Enter the 6-digit confirmation code sent to your email
             </p>
           </div>
 
@@ -230,6 +214,57 @@ function VerifyOTP() {
                 : "border border-slate-200 bg-white/90 text-slate-900 shadow-slate-300/50"
             }`}
           >
+            {/* Target Email Selector / Display */}
+            <div
+              className={`mb-6 rounded-2xl border p-3.5 flex items-center justify-between gap-3 ${
+                isNight ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
+              }`}
+            >
+              {isEditingEmail ? (
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your registered email"
+                    className={`flex-1 bg-transparent text-xs font-bold outline-none ${
+                      isNight ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={!email.trim() || resending}
+                    className="rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
+                  >
+                    {resending ? "Sending..." : "Send Code"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-hidden">
+                    <p className={`text-[10px] font-semibold uppercase tracking-wider ${
+                      isNight ? "text-slate-400" : "text-slate-500"
+                    }`}>
+                      Target Account
+                    </p>
+                    <p className="text-xs font-bold text-indigo-400 truncate">
+                      {email || "No email selected"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingEmail(true)}
+                    className={`text-[11px] font-semibold underline underline-offset-2 ${
+                      isNight ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    Change
+                  </button>
+                </>
+              )}
+            </div>
+
             {/* Status Messages */}
             {error && (
               <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400">
@@ -238,7 +273,7 @@ function VerifyOTP() {
             )}
 
             {success && (
-              <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-500">
+              <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-400">
                 ✓ {success}
               </div>
             )}
@@ -282,7 +317,7 @@ function VerifyOTP() {
               {/* Verify Button */}
               <button
                 type="submit"
-                disabled={loading || otp.join("").length !== 6}
+                disabled={loading || otp.join("").length !== 6 || !email.trim()}
                 className="mt-8 flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 py-4 font-heading font-bold text-white shadow-xl shadow-indigo-600/30 transition hover:scale-[1.01] hover:shadow-indigo-500/50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 {loading ? (
@@ -309,19 +344,21 @@ function VerifyOTP() {
                   isNight ? "text-slate-400" : "text-slate-500"
                 }`}
               >
-                Didn't receive the email?
+                Didn't receive the email code?
               </p>
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={resendTimer > 0}
+                disabled={resendTimer > 0 || resending || !email.trim()}
                 className={`mt-2 text-xs font-bold transition cursor-pointer ${
-                  resendTimer > 0
+                  resendTimer > 0 || !email.trim()
                     ? isNight ? "cursor-not-allowed text-slate-500" : "cursor-not-allowed text-slate-400"
                     : "text-indigo-500 hover:text-indigo-600 underline underline-offset-4"
                 }`}
               >
-                {resendTimer > 0
+                {resending
+                  ? "Dispatching new code..."
+                  : resendTimer > 0
                   ? `Resend security code in ${resendTimer}s`
                   : "Resend verification email"}
               </button>
@@ -337,6 +374,22 @@ function VerifyOTP() {
               <span>256-Bit SSL Encrypted Verification</span>
             </div>
           </div>
+
+          {/* Back to sign in */}
+          <p
+            className={`mt-6 text-center text-xs ${
+              isNight ? "text-slate-400" : "text-slate-500"
+            }`}
+          >
+            Already verified?{" "}
+            <Link
+              to="/login"
+              className="font-bold text-indigo-500 hover:text-indigo-600 underline underline-offset-4"
+            >
+              Back to Sign In
+            </Link>
+          </p>
+
         </div>
       </main>
     </div>

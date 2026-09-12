@@ -18,8 +18,14 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         if existing_user.is_verified:
             raise HTTPException(status_code=400, detail="Email already registered")
         else:
+            # Clean up existing unverified user record and associated OTPs
+            db.query(models.OTP).filter(models.OTP.email == user.email).delete()
             db.delete(existing_user)
             db.commit()
+
+    # Clean any stale OTPs for this email address
+    db.query(models.OTP).filter(models.OTP.email == user.email).delete()
+    db.commit()
 
     new_user = models.User(
         name=user.name,
@@ -41,6 +47,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_otp)
     db.commit()
 
+    # Dispatch OTP email in background
     send_otp_email(user.email, otp_code)
 
     return new_user
@@ -54,7 +61,25 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Please verify your email first")
+        # User is valid but unverified -> Automatically generate & send a fresh OTP
+        db.query(models.OTP).filter(models.OTP.email == user.email).delete()
+        db.commit()
+
+        otp_code = generate_otp()
+        new_otp = models.OTP(
+            email=user.email,
+            otp_code=otp_code,
+            expires_at=datetime.utcnow() + timedelta(minutes=5)
+        )
+        db.add(new_otp)
+        db.commit()
+
+        send_otp_email(user.email, otp_code)
+
+        raise HTTPException(
+            status_code=403,
+            detail="Account not verified. A new verification OTP code has been sent to your email."
+        )
 
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -64,6 +89,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
 @router.post("/verify-otp")
 def verify_otp(data: schemas.OTPVerify, db: Session = Depends(get_db)):
     otp_record = db.query(models.OTP).filter(
@@ -72,35 +98,36 @@ def verify_otp(data: schemas.OTPVerify, db: Session = Depends(get_db)):
     ).order_by(models.OTP.created_at.desc()).first()
 
     if not otp_record:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check and try again.")
 
     if otp_record.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="OTP expired")
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new code.")
 
     user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User account not found.")
 
     user.is_verified = True
+    
+    # Delete all used OTPs for this email
+    db.query(models.OTP).filter(models.OTP.email == data.email).delete()
     db.commit()
 
-    db.delete(otp_record)   # use ho gaya, delete kar do
-    db.commit()
-
-    return {"message": "Account verified successfully"}
+    return {"message": "Account verified successfully! You can now log in."}
 
 
 @router.post("/resend-otp")
 def resend_otp(data: schemas.OTPResend, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found with this email address.")
 
     if user.is_verified:
-        raise HTTPException(status_code=400, detail="Account is already verified")
+        raise HTTPException(status_code=400, detail="Account is already verified. Please sign in.")
 
     # Clean old OTPs for this email
     db.query(models.OTP).filter(models.OTP.email == data.email).delete()
+    db.commit()
 
     otp_code = generate_otp()
     new_otp = models.OTP(
@@ -113,4 +140,4 @@ def resend_otp(data: schemas.OTPResend, db: Session = Depends(get_db)):
 
     send_otp_email(data.email, otp_code)
 
-    return {"message": "Verification code resent successfully"}
+    return {"message": "Verification code sent successfully. Please check your inbox."}

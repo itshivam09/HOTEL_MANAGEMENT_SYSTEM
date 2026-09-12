@@ -14,12 +14,14 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [error, setError] = useState("");
+  const [isUnverified, setIsUnverified] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setError("");
+      setIsUnverified(false);
       setLoading(true);
 
       const loggedInUser = await login(email, password);
@@ -33,6 +35,13 @@ function Login() {
       const message =
         err.response?.data?.detail ||
         "Unable to login. Please check your credentials or verify your account.";
+      
+      const status = err.response?.status;
+      if (status === 403 || message.toLowerCase().includes("verify") || message.toLowerCase().includes("verification")) {
+        setIsUnverified(true);
+        localStorage.setItem("verificationEmail", email);
+      }
+      
       setError(message);
     } finally {
       setLoading(false);
@@ -79,9 +88,27 @@ function Login() {
                 : "border border-slate-200 bg-white/90 text-slate-900 shadow-slate-300/50"
             }`}
           >
+            {/* Error / Unverified Notice */}
             {error && (
-              <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400">
-                ⚠️ {error}
+              <div className={`mb-6 rounded-2xl border p-4 text-xs font-semibold ${
+                isUnverified
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                  : "border-red-500/30 bg-red-500/10 text-red-400"
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-base">{isUnverified ? "✉️" : "⚠️"}</span>
+                  <div className="flex-1">
+                    <p>{error}</p>
+                    {isUnverified && (
+                      <Link
+                        to={`/verify-otp?email=${encodeURIComponent(email)}`}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 border border-amber-500/30 transition hover:bg-amber-500/30"
+                      >
+                        Enter Verification OTP Code →
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
