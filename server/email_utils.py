@@ -6,8 +6,13 @@ import urllib.request
 import urllib.error
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Load from server/.env relative to this file, then fall back to current directory / environment
+_env_file = Path(__file__).resolve().parent / ".env"
+if _env_file.exists():
+    load_dotenv(dotenv_path=_env_file)
 load_dotenv()
 
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
